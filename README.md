@@ -1,5 +1,5 @@
 # Codility
-Solutions to Codility training tasks
+Solutions to Codility challenges that have ended.
 
 #### Indeed Prime 2015 challenge
 
