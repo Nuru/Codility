@@ -15,6 +15,7 @@ Solutions to Codility challenges that have ended.
 - [TennisTournament](solutions/tennis_tournament.rb)
 - [SocksLaundering](solutions/socks_laundering.rb)
 - [DiamondsCount](solutions/diamonds_count.rb)
+- [ArrayRecovery](solutions/array_recovery.rb)
 
 #### Codility Rubidium 2018 challenge
 - SheepShades _will publish after the challenge ends_
