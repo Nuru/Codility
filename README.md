@@ -10,6 +10,9 @@ Solutions to Codility challenges that have ended.
 
 - [RectangleBuilderGreaterArea](solutions/rectangle_builder.rb)
 - [DwarfsRafting](solutions/dwarves_rafting.rb)
+- I do not plan on doing HilbertMaze. There are plenty of published solutions already.
+- [TreeProduct](solutions/tree_product/tree_product.rb) with time complexity **O(N\*log(N))** (that was hard, O(N^2) is easy)
+
 
 #### Indeed Prime 2016 College Coders challenge
 - [TennisTournament](solutions/tennis_tournament.rb)
