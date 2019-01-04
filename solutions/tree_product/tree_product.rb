@@ -1,5 +1,5 @@
 # https://app.codility.com/programmers/lessons/91-tasks_from_indeed_prime_2016_challenge/tree_product/
-# Perfect score, O(n log n)  https://app.codility.com/demo/results/trainingUFQZPS-7K4/
+# Perfect score, O(n log n)  https://app.codility.com/demo/results/trainingT8ASPQ-2K5/
 
 # Solving this challenge with an algorithm that works in O(n**2) was not that big of a challenge, so I didn't bother.
 # Figuring out the optimal trisection of a graph in O(n log n) time was very, very challenging.
@@ -10,17 +10,13 @@
 # "Posts" -> nodes,  "bridges" -> edges, "area" -> a component, "Destroying a bridge" -> cutting an edge.
 # Note: nodes are usually called vertices (singular: vertex) in the larger context of mathematical graph theory.
 
-# If Node were a library class, we might hide more of the implementation, but in our case our whole program
-# is tree operations, so we do not need to hide anything.
-#
-
 # Edges is a hash of integers that index into the global tree array. Hash for quick insert and delete.
 # We delete the edges when we connect the associated node. Children and Parent are actual nodes.
 
 class Assert < StandardError; end
 class Node
 
-  attr_accessor :id, :edges, :children, :parent, :weight
+  attr_reader :id, :edges, :children, :parent, :weight
 
   def initialize(my_id)
     @id = my_id     # Not strictly necessary, but handy for debugging
@@ -28,6 +24,7 @@ class Node
     @children = []  # References to our children so we can navigate the tree top-to-bottom. Empty for leaves.
     @parent = nil   # A reference to our parent so we can navigate the tree bottom-to-top. Nil for the root.
     @weight = 1     # The number of nodes in the component the node is left in after cutting the parent edge
+    @heavy_child = nil # The child with the largest weight
   end
 
   # For processing the input. Registers an ID of a node we are connected to.
@@ -39,6 +36,7 @@ class Node
   # Every path from the subtree to any other node goes through self.
   def add_subtree(node)
     raise Assert.new("Adding unrecognized child #{node.id} to node #{@id}") unless @edges.delete(node.id)
+    @heavy_child = nil
     children.push(node)
     @weight += node.weight
   end
@@ -49,12 +47,13 @@ class Node
     @parent = node
   end
 
-  # Find the child with the largest weight
-  # As a side effect, sorts the children by weight, heaviest first
+  # Find the child with the largest weight.
+  # This is used so rarely and in such specific situations that general search optimizations actually slow it down.
   def heavy_child
     return @heavy_child unless @heavy_child.nil?
-    @children = @children.sort { |a,b| b.weight <=> a.weight } # could use sort!, but this way we convert to fixed size array also
     @heavy_child = @children.first
+    @children.each { |c| @heavy_child = c if c.weight > @heavy_child.weight }
+    @heavy_child
   end
 
   # Execute the block on the tree in depth-first, pre-order
@@ -161,7 +160,7 @@ def s(a, b)
   other_cuts = {1 => true} # list of possible subtree sizes resulting from a single cut anywhere but the heavy branch.
 
   root.children.each do |s|
-    break if s.weight == 1
+    next if s.weight == 1
     if s == heavy_subtree
       Node.post_order(s) { |c| heavy_cuts[c.weight] = true }
     else
@@ -172,8 +171,8 @@ def s(a, b)
 
   # convert to sorted arrays so we can do binary searches on them
   # This and future searches we do is what makes the whole algorithm O(n log n) instead of O(n)
-  heavy_cuts = heavy_cuts.keys.sort
-  other_cuts = other_cuts.keys.sort
+  heavy_cuts = Cutlist.new(heavy_cuts.keys.sort)
+  other_cuts = Cutlist.new(other_cuts.keys.sort)
 
   #   *Here is the magic*
   #
@@ -187,37 +186,40 @@ def s(a, b)
   # Condition 2 means that we can never find a better trisection without cutting on the heavy branch than
   # we can find by cutting the heavy branch at the root and bisecting the rest of the tree. Along with condition 1,
   # this means the second cut will not be on the heavy branch, so we only need to check cuts on the remaining branches.
+  #
 
   # Check condition 1
-  heavy_bisection = closest_to(heavy_cuts, heavy_subtree.weight / 2.0)
-  best_trisection_result = heavy_bisection * (heavy_subtree.weight - heavy_bisection) * (root.weight - heavy_subtree.weight)
+  heavy_bisection = heavy_cuts.closest_to(heavy_subtree.weight / 2.0)
+  best_trisection_result = heavy_bisection * (heavy_subtree.weight - heavy_bisection) * (tree.size - heavy_subtree.weight)
 
   # Check condition 2
-  # We could optimize this a bit more, but we have already gotten it down to (n/2) log(n/2) operations. Good enough.
-  # For every possible cut on the heavy branch, we test that cut against the best bisection of the rest of the tree.
-
-  perfect_trisection_result = (tree.size/3)*((tree.size+1)/3)*((tree.size+2)/3) # the best possible result of a trisection
+  # We test cuts of the heavy branch against the best bisection of the rest of the tree until the subtree of h is too small.
+  heavy_cuts.reverse!
   heavy_cuts.each do |h|
-    other_bisection = closest_to(other_cuts, (root.weight - h) / 2.0)
-    other_trisection_result = h * other_bisection * (root.weight - (h + other_bisection))
+    other_bisection = other_cuts.closest_to((tree.size - h) / 2.0)
+    other_trisection_result = h * other_bisection * (tree.size - (h + other_bisection))
     best_trisection_result = other_trisection_result if best_trisection_result < other_trisection_result
-    break if best_trisection_result == perfect_trisection_result
+    # If the subtree under h is smaller than the other 2 components, it will not help to make it even smaller
+    break if h < other_bisection && h < (tree.size - (h + other_bisection))
   end
 
-  [root.weight, best_bisection_result, best_trisection_result].max
+  [tree.size, best_bisection_result, best_trisection_result].max
 end
 
-# Find the element in the array ary closest to target value x.
-# REQUIRES the array to be sorted, and contain at least 1 value.
-# O(log n) where n is size of ary
-def closest_to(ary, x)
-  raise ArgumentError.new if ary.size == 0 or x < 0
-  # First, find the smallest value in ary >= x
-  i = (0...ary.size).bsearch { |i| ary[i] >= x }
-  return ary[-1] if i.nil?
-  return ary[i] if i == 0 || ary[i] == x
-  # Finally, check if the next lower value is closer to x, and return the best value
-  (x - ary[i]).abs < (x - ary[i-1]).abs ? ary[i] : ary[i-1]
+class Cutlist < Array
+  # Find the element in the self closest to target value x.
+  # REQUIRES the array to be sorted smallest to largest, and contain at least 1 value.
+  # O(log n) where n is size of ary
+  def closest_to(x)
+    raise ArgumentError.new if size == 0 or x < 0
+    # First, find the smallest value in ary >= x
+    i = (0...size).bsearch { |i| self[i] >= x }
+    return self[-1] if i.nil?
+    return self[i] if i == 0 || self[i] == x
+    # Finally, check if the next lower value is closer to x, and return the best value
+    raise ArgumentError.new("Array not sorted smallest to largest") unless self.fetch(i-1) < self.fetch(i)
+    (x - self[i]).abs < (x - self[i-1]).abs ? self[i] : self[i-1]
+  end
 end
 
 #
