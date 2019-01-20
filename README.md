@@ -20,5 +20,10 @@ Solutions to Codility challenges that have ended.
 - [DiamondsCount](solutions/diamonds_count.rb)
 - [ArrayRecovery](solutions/array_recovery.rb)
 
-#### Codility Rubidium 2018 challenge
-- SheepShades _will publish after the challenge ends_
+#### Codility elemental challenges
+- [SheepAndSunshades](solutions/sheep_shades/sheep_shades.rb) (Rubidium 2018)
+- ConcatenatingOfWords (Strontium 2019) _too boring_
+
+
+#### "Future Training"
+- [PolygonConcavityIndex](solutions/polygon_concavity_index.rb)
